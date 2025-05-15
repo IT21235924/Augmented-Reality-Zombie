@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AR with Animated GLTF Model and Sound</title>
+    <!-- Using the latest stable A-Frame version for best performance -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <!-- Latest AR.js version -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <!-- Animation mixer component for GLTF animations -->
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    
+    <script>
+        // Component to fix texture loading issues
+        AFRAME.registerComponent('texture-fixer', {
+            init: function() {
+                const el = this.el;
+                
+                // Handle model loaded event to fix textures
+                el.addEventListener('model-loaded', function(e) {
+                    console.log('Model loaded, fixing textures...');
+                    
+                    // Get the model object
+                    const model = el.getObject3D('mesh');
+                    if (!model) {
+                        console.error('No mesh found');
+                        return;
+                    }
+                    
+                    // Fix texture paths and apply materials
+                    model.traverse(function(node) {
+                        if (node.isMesh) {
+                            console.log('Found mesh:', node.name);
+                            
+                            // Check if material exists
+                            if (!node.material) {
+                                console.warn('No material on mesh:', node.name);
+                                return;
+                            }
+                            
+                            // Force material to be visible and properly rendered
+                            node.material.needsUpdate = true;
+                            node.material.side = THREE.DoubleSide; // Render both sides
+                            node.material.transparent = true;
+                            node.material.alphaTest = 0.5;
+                            
+                            // If material has maps, ensure they're loaded correctly
+                            if (node.material.map) {
+                                console.log('Texture found, fixing path...');
+                                
+                                // Get the current texture path
+                                const currentPath = node.material.map.image ? node.material.map.image.src : null;
+                                console.log('Current texture path:', currentPath);
+                                
+                                // If texture path doesn't include the textures folder, fix it
+                                if (currentPath && !currentPath.includes('/textures/')) {
+                                    // Extract the filename from the path
+                                    const filename = currentPath.split('/').pop();
+                                    
+                                    // Create a new texture with the correct path
+                                    const textureLoader = new THREE.TextureLoader();
+                                    const newTexture = textureLoader.load('textures/' + filename);
+                                    
+                                    // Apply the new texture
+                                    newTexture.anisotropy = 16; // Better quality
+                                    newTexture.encoding = THREE.sRGBEncoding; // Correct color space
+                                    node.material.map = newTexture;
+                                    node.material.needsUpdate = true;
+                                    
+                                    console.log('Fixed texture path to:', 'textures/' + filename);
+                                } else {
+                                    // Just improve the existing texture
+                                    node.material.map.anisotropy = 16;
+                                    node.material.map.encoding = THREE.sRGBEncoding;
+                                    node.material.map.needsUpdate = true;
+                                }
+                            } else {
+                                console.warn('No texture map found on material for:', node.name);
+                            }
+                        }
+                    });
+                    
+                    console.log('Texture fixing complete');
+                });
+            }
+        });
+        
+        // Preload all textures in the textures folder
+        AFRAME.registerComponent('preload-textures', {
+            init: function() {
+                console.log('Preloading textures...');
+                
+                // List of texture files from the user's description
+                const textureFiles = [
+                    'Body_baseColor.png',
+                    'Body_metallicRoughness.png',
+                    'Body_normal.png',
+                    'Body_specular_f0.png',
+                    'Bottoms_baseColor.png',
+                    'Bottoms_metallicRoughness.png',
+                    'Bottoms_normal.png',
+                    'Hair_normal.png',
+                    'Hair_baseColor.png',
+                    'Hats_metallicRoughness.png',
+                    'Hats_normal.png',
+                    'Tops_baseColor.png',
+                    'Tops_metallicRoughness.png',
+                    'Tops_normal.png'
+                ];
+                
+                // Preload each texture
+                const textureLoader = new THREE.TextureLoader();
+                textureFiles.forEach(file => {
+                    const path = 'textures/' + file;
+                    textureLoader.load(
+                        path,
+                        function(texture) {
+                            console.log('Preloaded texture:', path);
+                        },
+                        undefined,
+                        function(err) {
+                            console.error('Error loading texture:', path, err);
+                        }
+                    );
+                });
+            }
+        });
+        
+        // Component to manage background sound
+        AFRAME.registerComponent('background-sound', {
+            schema: {
+                src: {type: 'string', default: ''},
+                autoplay: {type: 'boolean', default: true},
+                loop: {type: 'boolean', default: true},
+                volume: {type: 'number', default: 1.0}
+            },
+            init: function() {
+                // Create audio element
+                this.audio = document.createElement('audio');
+                this.audio.src = this.data.src;
+                this.audio.loop = this.data.loop;
+                this.audio.volume = this.data.volume;
+                
+                // Set audio to preload
+                this.audio.preload = 'auto';
+                
+                // Add to DOM
+                document.body.appendChild(this.audio);
+                
+                // Log audio creation
+                console.log('Background sound created:', this.data.src);
+                
+                // Handle marker detection to play sound
+                const marker = document.querySelector('a-marker');
+                const audio = this.audio;
+                
+                // Play audio when marker is found
+                if (this.data.autoplay) {
+                    marker.addEventListener('markerFound', function() {
+                        console.log('Marker found, playing audio');
+                        
+                        // Use a promise to handle autoplay restrictions
+                        const playPromise = audio.play();
+                        
+                        if (playPromise !== undefined) {
+                            playPromise.then(_ => {
+                                console.log('Audio playback started successfully');
+                            })
+                            .catch(error => {
+                                console.error('Audio playback failed:', error);
+                                // Create a play button as fallback for browsers with strict autoplay policies
+                                createPlayButton();
+                            });
+                        }
+                    });
+                    
+                    // Pause audio when marker is lost
+                    marker.addEventListener('markerLost', function() {
+                        console.log('Marker lost, pausing audio');
+                        audio.pause();
+                    });
+                }
+                
+                // Function to create a play button (fallback for autoplay restrictions)
+                function createPlayButton() {
+                    if (document.getElementById('sound-play-button')) return;
+                    
+                    const button = document.createElement('button');
+                    button.id = 'sound-play-button';
+                    button.textContent = '🔊 Play Sound';
+                    button.style.position = 'fixed';
+                    button.style.bottom = '20px';
+                    button.style.left = '50%';
+                    button.style.transform = 'translateX(-50%)';
+                    button.style.zIndex = '1000';
+                    button.style.padding = '10px 20px';
+                    button.style.backgroundColor = '#4CAF50';
+                    button.style.color = 'white';
+                    button.style.border = 'none';
+                    button.style.borderRadius = '5px';
+                    button.style.fontSize = '16px';
+                    button.style.cursor = 'pointer';
+                    
+                    button.addEventListener('click', function() {
+                        audio.play()
+                            .then(() => {
+                                button.style.display = 'none';
+                            })
+                            .catch(error => {
+                                console.error('Manual play failed:', error);
+                            });
+                    });
+                    
+                    document.body.appendChild(button);
+                }
+            },
+            remove: function() {
+                // Clean up when component is removed
+                if (this.audio) {
+                    this.audio.pause();
+                    document.body.removeChild(this.audio);
+                }
+            }
+        });
+    </script>
+    
+    <style>
+        /* Sound control button styles */
+        #sound-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .sound-button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .sound-button:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+    </style>
+</head>
+<body style="margin: 0; overflow: hidden;">
+    <a-scene 
+        embedded 
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;" 
+        renderer="logarithmicDepthBuffer: true; precision: high; antialias: true; physicallyCorrectLights: true; colorManagement: true; gammaOutput: true;"
+        vr-mode-ui="enabled: false"
+        preload-textures
+        background-sound="src: zombie.mp3; autoplay: true; loop: true; volume: 0.7">
+        
+        <!-- Load 3D assets -->
+        <a-assets>
+            <!-- Reference to your GLTF model -->
+            <a-asset-item id="animated-model" src="scene.gltf"></a-asset-item>
+            
+            <!-- Reference to your sound file -->
+            <audio id="background-music" src="zombie.mp3" preload="auto"></audio>
+        </a-assets>
+
+        <!-- Marker and 3D object -->
+        <a-marker preset="hiro" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
+            <!-- GLTF model with animation -->
+            <a-entity
+                gltf-model="#animated-model"
+                texture-fixer
+                position="0 0 0"
+                rotation="0 0 0"
+                scale="1 1 1"
+                animation-mixer="clip: Attack; loop: repeat; clampWhenFinished: true; timeScale: 1.0;"
+                shadow="cast: true; receive: true">
+            </a-entity>
+            
+            <!-- Add better lighting for textures -->
+            <a-light type="ambient" color="#ffffff" intensity="0.7"></a-light>
+            <a-light type="directional" color="#ffffff" intensity="1.0" position="0 1 1"></a-light>
+            <a-light type="point" color="#ffffff" intensity="0.5" position="0 0.5 0"></a-light>
+        </a-marker>
+
+        <!-- AR Camera with better settings -->
+        <a-entity camera></a-entity>
+    </a-scene>
+    
+    <!-- Sound control buttons -->
+    <div id="sound-controls">
+        <button class="sound-button" id="mute-button" title="Mute/Unmute">🔊</button>
+        <button class="sound-button" id="volume-up" title="Volume Up">+</button>
+        <button class="sound-button" id="volume-down" title="Volume Down">-</button>
+    </div>
+    
+    <!-- Add a loading indicator -->
+    <div id="loading" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); color: white; display: flex; justify-content: center; align-items: center; z-index: 999; font-family: Arial, sans-serif;">
+        <div style="text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 20px;">Loading 3D Model & Textures...</div>
+            <div style="width: 80%; max-width: 300px; height: 20px; background-color: #333; border-radius: 10px; margin: 0 auto; overflow: hidden;">
+                <div id="progress-bar" style="width: 0%; height: 100%; background-color: #4CAF50; transition: width 0.3s;"></div>
+            </div>
+            <div id="loading-status" style="margin-top: 10px; font-size: 14px;">Initializing...</div>
+        </div>
+    </div>
+    
+    <script>
+        // Loading indicator logic
+        const loadingElement = document.getElementById('loading');
+        const progressBar = document.getElementById('progress-bar');
+        const loadingStatus = document.getElementById('loading-status');
+        let progressValue = 0;
+        
+        // Update loading status
+        function updateStatus(status) {
+            loadingStatus.textContent = status;
+            console.log('Loading status:', status);
+        }
+        
+        // Simulate loading progress
+        const progressInterval = setInterval(() => {
+            progressValue += 5;
+            if (progressValue > 90) clearInterval(progressInterval);
+            progressBar.style.width = progressValue + '%';
+            
+            // Update status based on progress
+            if (progressValue < 30) updateStatus('Loading model...');
+            else if (progressValue < 60) updateStatus('Loading textures...');
+            else if (progressValue < 90) updateStatus('Applying textures...');
+        }, 300);
+        
+        // Listen for texture loading events
+        document.querySelector('a-entity[texture-fixer]').addEventListener('model-loaded', function() {
+            updateStatus('Model loaded, processing textures...');
+            
+            // Give time for textures to be processed
+            setTimeout(() => {
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+                updateStatus('Ready!');
+                
+                setTimeout(() => {
+                    loadingElement.style.display = 'none';
+                }, 1000);
+            }, 3000);
+        });
+        
+        // Fallback to hide loading screen after timeout
+        setTimeout(() => {
+            loadingElement.style.display = 'none';
+        }, 20000);
+        
+        // Sound control logic
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get the audio element managed by the background-sound component
+            const scene = document.querySelector('a-scene');
+            let audio = null;
+            
+            // Wait for the scene to load
+            scene.addEventListener('loaded', function() {
+                // Get the audio element
+                audio = document.querySelector('audio');
+                
+                if (!audio) {
+                    console.warn('Audio element not found, waiting for background-sound component');
+                    // Try to get the audio from the background-sound component
+                    setTimeout(() => {
+                        audio = document.body.querySelector('audio');
+                        if (audio) {
+                            setupAudioControls(audio);
+                        } else {
+                            console.error('Could not find audio element');
+                        }
+                    }, 1000);
+                } else {
+                    setupAudioControls(audio);
+                }
+            });
+            
+            function setupAudioControls(audioElement) {
+                const muteButton = document.getElementById('mute-button');
+                const volumeUpButton = document.getElementById('volume-up');
+                const volumeDownButton = document.getElementById('volume-down');
+                
+                // Mute/unmute button
+                muteButton.addEventListener('click', function() {
+                    if (audioElement.muted) {
+                        audioElement.muted = false;
+                        muteButton.textContent = '🔊';
+                    } else {
+                        audioElement.muted = true;
+                        muteButton.textContent = '🔇';
+                    }
+                });
+                
+                // Volume up button
+                volumeUpButton.addEventListener('click', function() {
+                    if (audioElement.volume < 1.0) {
+                        audioElement.volume = Math.min(1.0, audioElement.volume + 0.1);
+                        console.log('Volume increased to:', audioElement.volume.toFixed(1));
+                    }
+                });
+                
+                // Volume down button
+                volumeDownButton.addEventListener('click', function() {
+                    if (audioElement.volume > 0.0) {
+                        audioElement.volume = Math.max(0.0, audioElement.volume - 0.1);
+                        console.log('Volume decreased to:', audioElement.volume.toFixed(1));
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
