@@ -85,47 +85,6 @@
             }
         });
         
-        // Preload all textures in the textures folder
-        AFRAME.registerComponent('preload-textures', {
-            init: function() {
-                console.log('Preloading textures...');
-                
-                // List of texture files from the user's description
-                const textureFiles = [
-                    'Body_baseColor.png',
-                    'Body_metallicRoughness.png',
-                    'Body_normal.png',
-                    'Body_specular_f0.png',
-                    'Bottoms_baseColor.png',
-                    'Bottoms_metallicRoughness.png',
-                    'Bottoms_normal.png',
-                    'Hair_normal.png',
-                    'Hair_baseColor.png',
-                    'Hats_metallicRoughness.png',
-                    'Hats_normal.png',
-                    'Tops_baseColor.png',
-                    'Tops_metallicRoughness.png',
-                    'Tops_normal.png'
-                ];
-                
-                // Preload each texture
-                const textureLoader = new THREE.TextureLoader();
-                textureFiles.forEach(file => {
-                    const path = 'textures/' + file;
-                    textureLoader.load(
-                        path,
-                        function(texture) {
-                            console.log('Preloaded texture:', path);
-                        },
-                        undefined,
-                        function(err) {
-                            console.error('Error loading texture:', path, err);
-                        }
-                    );
-                });
-            }
-        });
-        
         // Component to manage background sound
         AFRAME.registerComponent('background-sound', {
             schema: {
@@ -265,30 +224,159 @@
         
         <!-- Load 3D assets -->
         <a-assets>
-            <!-- Reference to your GLTF model -->
-            <a-asset-item id="animated-model" src="scene.gltf"></a-asset-item>
-            
-            <!-- Reference to your sound file -->
+            <!-- Paniced Zombie -->
+            <a-asset-item id="animated-model" src="Model1/scene.gltf"></a-asset-item>
+
+            <!-- Building -->
+            <a-asset-item id="bg-hos" src="Model2/scene.gltf"></a-asset-item>
+
+            <!-- Ground -->
+            <a-asset-item id="ground" src="Model3/scene.gltf"></a-asset-item>
+
+            <!-- Armoured Vehicle -->
+            <a-asset-item id="armoured-vehicle" src="Model4/scene.gltf"></a-asset-item>
+
+            <!-- soldier ready for fight -->
+            <a-asset-item id="soldier-ready-for-fight" src="Model5/scene.gltf"></a-asset-item>
+
+            <!-- soldier holding assault rifle -->
+            <a-asset-item id="soldier-holding-assault-rifle" src="Model6/scene.gltf"></a-asset-item>
+
+            <!-- Humvee -->
+            <a-asset-item id="humvee" src="Model7/scene.gltf"></a-asset-item>
+
+            <!-- soldier holding shotgun -->
+            <a-asset-item id="soldier-holding-shotgun" src="Model8/scene.gltf"></a-asset-item>
+
+            <!-- soldier holding javelin -->
+            <a-assets-item id="soldier-holding-javelin" src="Model9/scene.gltf"></a-asset-item>
+
+            <!-- Crashed helicopter -->
+            <a-assets-item id="crashed-helicopter" src="Model10/scene.gltf"></a-asset-item>
+
+            <!-- Crashed car -->
+            <a-assets-item id="crashed-car" src="Model11/scene.gltf"></a-asset-item>
+
+            <!-- Paniced Zombie Sound -->
             <audio id="background-music" src="zombie.mp3" preload="auto"></audio>
         </a-assets>
 
         <!-- Marker and 3D object -->
-        <a-marker preset="hiro" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
-            <!-- GLTF model with animation -->
+        <a-marker type="pattern" id="muditha-marker" url="Markers/muditha.patt" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
+
+            <!-- Paniced Zombie with animation -->
             <a-entity
                 gltf-model="#animated-model"
                 texture-fixer
-                position="0 0 0"
+                position="-0.25 0.25 -0.2"
                 rotation="0 0 0"
-                scale="1 1 1"
-                animation-mixer="clip: Attack; loop: repeat; clampWhenFinished: true; timeScale: 1.0;"
+                scale="0.2 0.2 0.2"
+                animation-mixer="clip: Armature|mixamo.com|Layer0; loop: repeat; clampWhenFinished: true; timeScale: 1.0;"
                 shadow="cast: true; receive: true">
             </a-entity>
-            
-            <!-- Add better lighting for textures -->
-            <a-light type="ambient" color="#ffffff" intensity="0.7"></a-light>
-            <a-light type="directional" color="#ffffff" intensity="1.0" position="0 1 1"></a-light>
-            <a-light type="point" color="#ffffff" intensity="0.5" position="0 0.5 0"></a-light>
+
+            <!-- Building -->
+            <a-entity
+                gltf-model="#bg-hos"
+                texture-fixer
+                position="0 0.25 -1"
+                rotation="0 0 0"
+                scale="0.25 0.25 0.25"
+                shadow="cast: true; receive: true">
+            </a-entity>
+
+            <!-- Ground -->
+            <a-entity
+                gltf-model="#ground"
+                texture-fixer
+                position="0 0 0"
+                rotation="0 0 0"
+                scale="0.1 0.1 0.1"
+                shadow="cast: true; receive: true">
+            </a-entity>
+
+            <!-- Armoured Vehicle -->
+            <a-entity
+                gltf-model="#armoured-vehicle"
+                texture-fixer
+                position="1.5 0.25 1.5"
+                rotation="0 -115 0"
+                scale="0.3 0.3 0.3"
+                shadow="cast: true; receive: true">
+            </a-entity>
+
+            <!-- Soldier ready for fight -->
+            <a-entity
+                gltf-model="#soldier-ready-for-fight"
+                texture-fixer
+                position="-0.25 0.25 1.5"
+                rotation="0 180 0"
+                scale="0.06 0.06 0.06"
+                animation-mixer="clip: Scene; loop: repeat; clampWhenFinished: true; timeScale: 1.0;"
+                shadow="cast: true; receive: true">
+            </a-entity>
+
+            <!-- soldier holding assault rifle -->
+            <a-entity
+                gltf-model="#soldier-holding-assault-rifle"
+                texture-fixer
+                position="0 0.25 2.5"
+                rotation="0 180 0"
+                scale="0.3 0.3 0.3"
+                animation-mixer="clip: stay pose; loop: repeat; clampWhenFinished: true; timeScale: 1.0;"
+                shadow="cast: true; receive: true">
+            </a-entity>
+
+            <!-- Humvee -->
+            <a-entity
+                gltf-model="#humvee"
+                texture-fixer
+                position="-1.5 0.25 1.5"
+                rotation="0 17.5 0"
+                scale="0.3 0.3 0.3"
+                shadow="cast: true; receive: true">
+            </a-entity>
+
+            <!-- soldier holding shotgun -->
+            <a-entity
+                gltf-model="#soldier-holding-shotgun"
+                texture-fixer
+                position="-1.085 0.25 2.3"
+                rotation="0 135 0"
+                scale="0.35 0.35 0.35"
+                shadow="cast: true; receive: true">
+            </a-entity>
+
+            <!-- soldier holding javelin -->
+            <a-entity
+                gltf-model="#soldier-holding-javelin"
+                texture-fixer
+                position="0.75 0.25 2.6"
+                rotation="0 200 0"
+                scale="0.0075 0.0075 0.0075"
+                shadow="cast: true; receive: true">
+            </a-entity>
+
+            <!-- Crashed helicopter -->
+            <a-entity
+                gltf-model="#crashed-helicopter"
+                texture-fixer
+                position="-2 0.25 -3.5"
+                rotation="0 45 0"
+                scale="0.35 0.35 0.35"
+                shadow="cast: true; receive: true">
+            </a-entity>
+
+            <!-- Crashed car -->
+            <a-entity
+                gltf-model="#crashed-car"
+                texture-fixer
+                position="2 0.25 -3"
+                rotation="0 -135 0"
+                scale="0.2 0.2 0.2"
+                shadow="cast: true; receive: true">
+            </a-entity>
+
         </a-marker>
 
         <!-- AR Camera with better settings -->
